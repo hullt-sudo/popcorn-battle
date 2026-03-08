@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🍿 Popcorn Battle — Admin Panel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --red:#FF4444;--gold:#FFD700;--orange:#FF8C00;--green:#66BB6A;
+    --bg:#070500;--panel:rgba(255,255,255,0.04);--border:rgba(255,165,0,0.2);
+  }
+  body{background:var(--bg);color:#fff;font-family:'Share Tech Mono',monospace;min-height:100vh;}
+  input,button{font-family:'Share Tech Mono',monospace;}
+
+  /* ── NUMBER PAD LOGIN ── */
+  #loginScreen{
+    position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 30%,#2a0a00,#050200);z-index:100;transition:opacity 0.4s;
+  }
+  #loginScreen.hidden{opacity:0;pointer-events:none;}
+  .login-box{background:rgba(255,255,255,0.04);border:1px solid rgba(255,165,0,0.3);border-radius:24px;padding:36px 32px;width:300px;display:flex;flex-direction:column;gap:16px;align-items:center;}
+  .login-title{font-family:'Orbitron',monospace;font-size:13px;color:var(--gold);letter-spacing:4px;text-align:center;}
+  .lock-icon{font-size:52px;text-align:center;filter:drop-shadow(0 0 20px var(--gold));}
+
+  /* PIN display dots */
+  .pin-display{display:flex;gap:12px;justify-content:center;margin:4px 0;}
+  .pin-dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,165,0,0.4);background:transparent;transition:all 0.15s;}
+  .pin-dot.filled{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(255,215,0,0.6);}
+  .pin-dot.error{background:var(--red);border-color:var(--red);box-shadow:0 0 10px rgba(255,68,68,0.6);}
+
+  /* Number pad grid */
+  .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;}
+  .num-btn{
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,165,0,0.2);
+    border-radius:14px;padding:16px 0;font-size:22px;font-weight:700;color:#fff;
+    cursor:pointer;font-family:'Orbitron',monospace;letter-spacing:1px;
+    transition:all 0.1s;user-select:none;
+  }
+  .num-btn:hover{background:rgba(255,165,0,0.15);border-color:rgba(255,165,0,0.5);}
+  .num-btn:active{transform:scale(0.93);background:rgba(255,165,0,0.25);}
+  .num-btn.clear-btn{color:var(--red);border-color:rgba(255,68,68,0.25);font-size:16px;}
+  .num-btn.clear-btn:hover{background:rgba(255,68,68,0.12);border-color:var(--red);}
+  .num-btn.enter-btn{color:var(--gold);border-color:rgba(255,215,0,0.3);font-size:16px;}
+  .num-btn.enter-btn:hover{background:rgba(255,215,0,0.12);border-color:var(--gold);}
+  .login-err{color:var(--red);font-size:12px;text-align:center;min-height:16px;letter-spacing:1px;}
+
+  /* ── MAIN ── */
+  #adminPanel{display:none;}
+  #adminPanel.visible{display:block;}
+
+  .topbar{
+    background:rgba(0,0,0,0.8);border-bottom:1px solid rgba(255,165,0,0.2);
+    padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;
+    backdrop-filter:blur(8px);
+  }
+  .topbar-title{font-family:'Orbitron',monospace;font-size:14px;color:var(--gold);letter-spacing:3px;}
+  .topbar-right{display:flex;gap:12px;align-items:center;}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .logout-btn{background:rgba(255,68,68,0.12);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;letter-spacing:1px;}
+
+  .main{padding:24px;max-width:1100px;margin:0 auto;}
+  h2{font-family:'Orbitron',monospace;font-size:13px;color:var(--gold);letter-spacing:3px;margin-bottom:16px;}
+
+  /* Stats row */
+  .stats-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px;}
+  .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 22px;flex:1;min-width:140px;text-align:center;}
+  .stat-num{font-family:'Orbitron',monospace;font-size:28px;color:var(--gold);}
+  .stat-label{font-size:11px;color:#666;margin-top:4px;letter-spacing:1px;}
+
+  /* Add player */
+  .add-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+  .add-input{background:rgba(255,255,255,0.07);border:1px solid #444;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;flex:1;min-width:150px;}
+  .add-input:focus{border-color:var(--gold);}
+  .add-btn{background:rgba(100,200,100,0.12);border:1px solid var(--green);color:var(--green);border-radius:10px;padding:10px 20px;cursor:pointer;font-size:13px;white-space:nowrap;}
+
+  /* Search */
+  .search-bar{background:rgba(255,255,255,0.06);border:1px solid #333;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;width:100%;margin-bottom:16px;}
+  .search-bar:focus{border-color:rgba(255,165,0,0.5);}
+
+  /* Player table */
+  .player-table{width:100%;border-collapse:collapse;}
+  .player-table th{text-align:left;font-size:10px;color:#555;letter-spacing:2px;padding:8px 12px;border-bottom:1px solid #1a1a1a;}
+  .player-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;vertical-align:middle;}
+  .player-table tr:hover td{background:rgba(255,255,255,0.02);}
+  .player-table tr.banned td{opacity:0.5;}
+
+  .tag{display:inline-block;border-radius:5px;padding:2px 8px;font-size:10px;letter-spacing:1px;font-weight:700;}
+  .tag-active{background:rgba(100,200,100,0.15);color:var(--green);border:1px solid var(--green);}
+  .tag-banned{background:rgba(255,68,68,0.15);color:var(--red);border:1px solid var(--red);}
+  .tag-offline{background:rgba(100,100,100,0.15);color:#666;border:1px solid #333;}
+  .tag-admin{background:rgba(255,215,0,0.12);color:var(--gold);border:1px solid var(--gold);}
+
+  .action-btn{border-radius:7px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:'Share Tech Mono',monospace;border:1px solid;transition:all 0.15s;white-space:nowrap;}
+  .ban-btn{background:rgba(255,68,68,0.1);border-color:var(--red);color:var(--red);}
+  .ban-btn:hover{background:rgba(255,68,68,0.25);}
+  .unban-btn{background:rgba(100,200,100,0.1);border-color:var(--green);color:var(--green);}
+  .unban-btn:hover{background:rgba(100,200,100,0.25);}
+  .kick-btn{background:rgba(255,165,0,0.1);border-color:var(--orange);color:var(--orange);}
+  .kick-btn:hover{background:rgba(255,165,0,0.25);}
+  .del-btn{background:rgba(100,100,100,0.1);border-color:#444;color:#666;}
+  .del-btn:hover{background:rgba(255,68,68,0.1);border-color:var(--red);color:var(--red);}
+
+  /* Ban log */
+  .log-panel{background:rgba(255,68,68,0.03);border:1px solid rgba(255,68,68,0.15);border-radius:14px;padding:20px;margin-top:28px;}
+  .log-entry{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;}
+  .log-entry:last-child{border-bottom:none;}
+  .log-time{color:#555;font-size:10px;}
+  .log-msg{color:#aaa;}
+  .log-action{color:var(--red);}
+
+  /* Rooms panel */
+  .rooms-grid{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;}
+  .room-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,165,0,0.15);border-radius:12px;padding:14px 18px;min-width:180px;}
+  .room-code{font-family:'Orbitron',monospace;font-size:16px;color:var(--gold);letter-spacing:4px;}
+  .room-meta{font-size:11px;color:#555;margin-top:4px;}
+  .room-close-btn{background:rgba(255,68,68,0.1);border:1px solid var(--red);color:var(--red);border-radius:6px;padding:4px 10px;font-size:10px;cursor:pointer;margin-top:8px;}
+
+  /* Toast */
+  #toast{position:fixed;bottom:28px;right:28px;background:#1a1a1a;border:1px solid var(--gold);border-radius:10px;padding:12px 20px;font-size:13px;color:var(--gold);opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;}
+  #toast.show{opacity:1;}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+  .modal-overlay.open{opacity:1;pointer-events:all;}
+  .modal{background:#110800;border:1px solid rgba(255,165,0,0.3);border-radius:18px;padding:32px;width:380px;max-width:90vw;}
+  .modal h3{font-family:'Orbitron',monospace;font-size:13px;color:var(--gold);letter-spacing:2px;margin-bottom:16px;}
+  .modal-input{background:rgba(255,255,255,0.07);border:1px solid #444;border-radius:8px;padding:10px 14px;color:#fff;font-size:13px;outline:none;width:100%;margin-bottom:10px;}
+  .modal-input:focus{border-color:rgba(255,165,0,0.5);}
+  .modal-btns{display:flex;gap:10px;margin-top:16px;}
+  .modal-cancel{flex:1;background:transparent;border:1px solid #444;color:#888;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;}
+  .modal-confirm{flex:1;background:rgba(255,68,68,0.15);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700;}
+
+  @media(max-width:600px){
+    .main{padding:14px;}
+    .player-table th:nth-child(3),.player-table td:nth-child(3),
+    .player-table th:nth-child(4),.player-table td:nth-child(4){display:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="lock-icon">🔐</div>
+    <div class="login-title">ADMIN ACCESS</div>
+    <div style="text-align:center;color:#555;font-size:10px;letter-spacing:1px;">POPCORN BATTLE CONTROL PANEL</div>
+
+    <!-- PIN dots -->
+    <div class="pin-display">
+      <div class="pin-dot" id="dot0"></div>
+      <div class="pin-dot" id="dot1"></div>
+      <div class="pin-dot" id="dot2"></div>
+      <div class="pin-dot" id="dot3"></div>
+    </div>
+
+    <!-- Number pad -->
+    <div class="numpad">
+      <button class="num-btn" onclick="padPress('1')">1</button>
+      <button class="num-btn" onclick="padPress('2')">2</button>
+      <button class="num-btn" onclick="padPress('3')">3</button>
+      <button class="num-btn" onclick="padPress('4')">4</button>
+      <button class="num-btn" onclick="padPress('5')">5</button>
+      <button class="num-btn" onclick="padPress('6')">6</button>
+      <button class="num-btn" onclick="padPress('7')">7</button>
+      <button class="num-btn" onclick="padPress('8')">8</button>
+      <button class="num-btn" onclick="padPress('9')">9</button>
+      <button class="num-btn clear-btn" onclick="padClear()">⌫</button>
+      <button class="num-btn" onclick="padPress('0')">0</button>
+      <button class="num-btn enter-btn" onclick="doLogin()">↵</button>
+    </div>
+
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel">
+  <div class="topbar">
+    <div class="topbar-title">🍿 POPCORN BATTLE — ADMIN</div>
+    <div class="topbar-right">
+      <div class="status-dot"></div>
+      <span style="font-size:11px;color:#555;">LIVE</span>
+      <button class="logout-btn" onclick="doLogout()">LOGOUT</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow"></div>
+
+    <!-- Players Section -->
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:28px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <h2 style="margin:0;">👥 PLAYER MANAGEMENT</h2>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="storageDebug" style="font-size:10px;color:#555;letter-spacing:1px;"></div>
+          <button onclick="manualRefresh()" style="background:rgba(255,255,255,.06);border:1px solid #444;color:#aaa;border-radius:8px;padding:6px 14px;font-size:11px;cursor:pointer;font-family:'Share Tech Mono',monospace;letter-spacing:1px;">↺ REFRESH</button>
+        </div>
+      </div>
+      <div class="add-row">
+        <input class="add-input" id="addName" placeholder="Username..."/>
+        <select id="addStatus" style="background:#1a1a1a;border:1px solid #444;border-radius:10px;padding:10px 14px;color:#ddd;font-size:13px;outline:none;">
+          <option value="active" style="background:#1a1a1a;color:#ddd;">Active</option>
+          <option value="offline" style="background:#1a1a1a;color:#ddd;">Offline</option>
+        </select>
+        <button class="add-btn" onclick="addPlayer()">+ Add Player</button>
+      </div>
+
+      <!-- Search -->
+      <input class="search-bar" id="searchBar" placeholder="🔍  Search players..." oninput="renderTable()"/>
+      <div style="font-size:10px;color:#444;margin-bottom:10px;letter-spacing:1px;">👤 SHOWING REAL PLAYERS ONLY — BOTS ARE NOT LISTED</div>
+
+      <!-- Table -->
+      <div style="overflow-x:auto;">
+        <table class="player-table">
+          <thead>
+            <tr>
+              <th>PLAYER</th>
+              <th>STATUS</th>
+              <th>ROOM</th>
+              <th>WINS / KILLS</th>
+              <th>JOINED</th>
+              <th>ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="playerTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Give Skin Section -->
+    <div style="background:var(--panel);border:1px solid rgba(255,215,0,.3);border-radius:16px;padding:22px;margin-bottom:28px;">
+      <h2 style="color:var(--gold);">🎁 GIVE SKINS TO PLAYER</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:16px;letter-spacing:1px;">SELECT A PLAYER THEN PICK ONE OR MORE SKINS — CLICK TO TOGGLE</div>
+
+      <!-- Player select -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:10px;color:#aaa;letter-spacing:1px;margin-bottom:6px;">PLAYER</div>
+        <select id="giveSkinPlayer" style="background:#1a1a1a;border:1px solid #FFD70066;border-radius:10px;padding:10px 14px;color:#FFD700;font-size:13px;outline:none;font-family:'Share Tech Mono',monospace;cursor:pointer;min-width:200px;">
+          <option value="" style="background:#1a1a1a;color:#888;">— Select player —</option>
+        </select>
+      </div>
+
+      <!-- Skin grid grouped by rarity -->
+      <div id="skinPickerGrid" style="margin-bottom:14px;"></div>
+
+      <!-- Selected skins summary + give button -->
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div id="selectedSkinsDisplay" style="flex:1;min-width:160px;font-size:12px;color:#888;font-style:italic;">No skins selected</div>
+        <button onclick="giveSkin()" style="background:linear-gradient(135deg,rgba(255,215,0,.25),rgba(255,140,0,.25));border:2px solid var(--gold);color:var(--gold);border-radius:10px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Share Tech Mono',monospace;white-space:nowrap;">
+          🎁 Give Selected Skins
+        </button>
+        <button onclick="clearSkinSelection()" style="background:rgba(255,255,255,.04);border:1px solid #444;color:#666;border-radius:10px;padding:10px 14px;font-size:12px;cursor:pointer;font-family:'Share Tech Mono',monospace;">
+          ✕ Clear
+        </button>
+      </div>
+      <div id="giveSkinMsg" style="margin-top:10px;font-size:12px;min-height:18px;"></div>
+    </div>
+
+    <!-- Active Rooms -->
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:28px;">
+      <h2>🚪 ACTIVE ROOMS</h2>
+      <div class="rooms-grid" id="roomsGrid"></div>
+    </div>
+
+    <!-- Ban Log -->
+    <div class="log-panel">
+      <h2 style="color:var(--red);">🚫 BAN LOG</h2>
+      <div id="banLog"><div style="color:#444;font-size:12px;">No bans recorded yet.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Ban Modal -->
+<div class="modal-overlay" id="banModal">
+  <div class="modal">
+    <h3>🚫 BAN PLAYER</h3>
+    <div id="banModalName" style="font-size:15px;color:#ddd;margin-bottom:14px;"></div>
+    <input class="modal-input" id="banReason" placeholder="Reason for ban (optional)..."/>
+    <select id="banDuration" style="background:#1a1a1a;border:1px solid #444;border-radius:8px;padding:10px 14px;color:#ddd;font-size:13px;outline:none;width:100%;margin-bottom:4px;">
+      <option value="1h"   style="background:#1a1a1a;color:#ddd;">1 Hour</option>
+      <option value="24h"  style="background:#1a1a1a;color:#ddd;">24 Hours</option>
+      <option value="7d"   style="background:#1a1a1a;color:#ddd;">7 Days</option>
+      <option value="perm" style="background:#1a1a1a;color:#ddd;" selected>Permanent</option>
+    </select>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmBan()">🚫 BAN</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────
+const ADMIN_PIN = "5699";
+
+// ── NUMPAD STATE ─────────────────────────────────────────────
+let pinEntry = "";
+
+function padPress(digit){
+  if(pinEntry.length >= 4) return;
+  pinEntry += digit;
+  updateDots();
+  if(pinEntry.length === 4) setTimeout(doLogin, 180); // auto-submit when 4 digits entered
+}
+
+function padClear(){
+  if(pinEntry.length === 0) return;
+  pinEntry = pinEntry.slice(0,-1);
+  updateDots();
+}
+
+function updateDots(state){
+  for(let i=0;i<4;i++){
+    const dot = document.getElementById("dot"+i);
+    dot.className = "pin-dot";
+    if(state === "error") dot.classList.add("error");
+    else if(i < pinEntry.length) dot.classList.add("filled");
+  }
+}
+
+// Keyboard support for number pad
+document.addEventListener("keydown", e=>{
+  if(document.getElementById("loginScreen").classList.contains("hidden")) return;
+  if(e.key >= "0" && e.key <= "9") padPress(e.key);
+  else if(e.key === "Backspace") padClear();
+  else if(e.key === "Enter") doLogin();
+});
+
+// ── STATE ───────────────────────────────────────────────────
+const ACCOUNTS_KEY = "popcornbattle_accounts_v1";
+
+function loadRealPlayers(){
+  try{
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if(!raw) return [];
+    const accounts = JSON.parse(raw);
+    return Object.values(accounts).map((a, i) => ({
+      id: i + 1,
+      name: a.username || "(unknown)",
+      status: "offline",
+      room: "—",
+      wins: a.wins || 0,
+      kills: a.kills || 0,
+      joined: a.createdAt || "—",
+      banned: a.banned || false,
+      banReason: a.banReason || "",
+      isAdmin: false,
+      isBot: false,
+      skins: (a.unlockedKernelIds || []).length,
+    }));
+  } catch(e){ return []; }
+}
+
+function saveAccountField(username, fields){
+  try{
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if(!raw) return;
+    const accounts = JSON.parse(raw);
+    const key = username.toLowerCase();
+    if(accounts[key]) Object.assign(accounts[key], fields);
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  } catch(e){}
+}
+
+let players = loadRealPlayers();
+let rooms = [];
+let banLog = [];
+let selectedBanId = null;
+let nextId = players.length + 1;
+
+// Refresh players from storage every 5 seconds
+setInterval(()=>{ players = loadRealPlayers(); renderAll(); }, 5000);
+
+// ── ALL SKINS (mirrors game KERNELS list) ────────────────────
+const ALL_SKINS = [
+  // Rare (15)
+  {id:"classic",    name:"Classic",        rarity:"rare"},
+  {id:"golden",     name:"Golden",         rarity:"rare"},
+  {id:"pink",       name:"Rosy",           rarity:"rare"},
+  {id:"blue",       name:"Blueberry",      rarity:"rare"},
+  {id:"green",      name:"Herb",           rarity:"rare"},
+  {id:"caramel",    name:"Caramel",        rarity:"rare"},
+  {id:"cheddar",    name:"Cheddar",        rarity:"rare"},
+  {id:"minty",      name:"Minty",          rarity:"rare"},
+  {id:"cherry",     name:"Cherry",         rarity:"rare"},
+  {id:"sandy",      name:"Sandy",          rarity:"rare"},
+  {id:"lavender",   name:"Lavender",       rarity:"rare"},
+  {id:"tangy",      name:"Tangy",          rarity:"rare"},
+  {id:"cocoa",      name:"Cocoa",          rarity:"rare"},
+  {id:"bubbly",     name:"Bubbly",         rarity:"rare"},
+  {id:"maple",      name:"Maple",          rarity:"rare"},
+  // Super Rare (13)
+  {id:"purple",     name:"Violet",         rarity:"super_rare"},
+  {id:"spicy",      name:"Spicy",          rarity:"super_rare"},
+  {id:"ice",        name:"Ice",            rarity:"super_rare"},
+  {id:"toxic",      name:"Toxic",          rarity:"super_rare"},
+  {id:"night",      name:"Midnight",       rarity:"super_rare"},
+  {id:"magma",      name:"Magma",          rarity:"super_rare"},
+  {id:"neon",       name:"Neon",           rarity:"super_rare"},
+  {id:"phantom",    name:"Phantom",        rarity:"super_rare"},
+  {id:"rust",       name:"Rusty",          rarity:"super_rare"},
+  {id:"swamp",      name:"Swamp",          rarity:"super_rare"},
+  {id:"cotton",     name:"Cotton Candy",   rarity:"super_rare"},
+  {id:"obsidian",   name:"Obsidian",       rarity:"super_rare"},
+  {id:"coral",      name:"Coral",          rarity:"super_rare"},
+  // Epic (12)
+  {id:"galaxy",     name:"Galaxy",         rarity:"epic"},
+  {id:"rainbow",    name:"Rainbow",        rarity:"epic"},
+  {id:"lava",       name:"Lava",           rarity:"epic"},
+  {id:"cyber",      name:"Cyber",          rarity:"epic"},
+  {id:"crystal",    name:"Crystal",        rarity:"epic"},
+  {id:"prism",      name:"Prism",          rarity:"epic"},
+  {id:"arctic",     name:"Arctic",         rarity:"epic"},
+  {id:"ancient",    name:"Ancient",        rarity:"epic"},
+  {id:"plasma",     name:"Plasma",         rarity:"epic"},
+  {id:"venom",      name:"Venom",          rarity:"epic"},
+  {id:"biolum",     name:"Bioluminescent", rarity:"epic"},
+  {id:"abyssal",    name:"Abyssal",        rarity:"epic"},
+  // Mythic (14)
+  {id:"shadow",     name:"Shadow",         rarity:"mythic"},
+  {id:"storm",      name:"Storm",          rarity:"mythic"},
+  {id:"dragon",     name:"Dragon",         rarity:"mythic"},
+  {id:"specter",    name:"Specter",        rarity:"mythic"},
+  {id:"tsunami",    name:"Tsunami",        rarity:"mythic"},
+  {id:"nova",       name:"Nova",           rarity:"mythic"},
+  {id:"warlord",    name:"Warlord",        rarity:"mythic"},
+  {id:"eclipse",    name:"Eclipse",        rarity:"mythic"},
+  {id:"titan",      name:"Titan",          rarity:"mythic"},
+  {id:"cosmos",     name:"Cosmos",         rarity:"mythic"},
+  {id:"abyss",      name:"Abyss",          rarity:"mythic"},
+  {id:"dusk",       name:"Dusk",           rarity:"mythic"},
+  {id:"glacier",    name:"Glacier",        rarity:"mythic"},
+  {id:"rune",       name:"Runic",          rarity:"mythic"},
+  // Legendary (6)
+  {id:"angel",      name:"Angel",          rarity:"legendary"},
+  {id:"void",       name:"Void",           rarity:"legendary"},
+  {id:"phoenix",    name:"Phoenix",        rarity:"legendary"},
+  {id:"celestial",  name:"Celestial",      rarity:"legendary"},
+  {id:"eternal",    name:"Eternal",        rarity:"legendary"},
+  {id:"wraith",     name:"Wraith",         rarity:"legendary"},
+  // Ultra (3)
+  {id:"ultra",      name:"🌟 Ultra Kernel", rarity:"ultra"},
+  {id:"ultrablaze", name:"🌠 Ultra Blaze",  rarity:"ultra"},
+  {id:"ultravoid",  name:"🫙 Ultra Void",   rarity:"ultra"},
+  // Admin Exclusive (3)
+  {id:"admin_crown", name:"👑 Admin Crown", rarity:"admin_exclusive"},
+  {id:"admin_fire",  name:"🔱 Inferno",     rarity:"admin_exclusive"},
+  {id:"admin_ghost", name:"👻 Phantasm",    rarity:"admin_exclusive"},
+];
+
+let selectedSkinIds = new Set();
+
+const RARITY_COLORS = {
+  rare:"#4FC3F7", super_rare:"#CE93D8", epic:"#FF8A65",
+  mythic:"#F48FB1", legendary:"#FFD700", ultra:"#FF00FF", admin_exclusive:"#FF4444"
+};
+const RARITY_LABELS_MAP = {
+  rare:"★ Rare", super_rare:"★★ Super Rare", epic:"★★★ Epic",
+  mythic:"★★★★ Mythic", legendary:"★★★★★ Legendary",
+  ultra:"✦ ULTRA", admin_exclusive:"👑 Admin Exclusive"
+};
+
+function populateGiveSkinDropdowns(){
+  const pSel = document.getElementById("giveSkinPlayer");
+  const current = pSel.value;
+  pSel.innerHTML = '<option value="" style="background:#1a1a1a;color:#888;">— Select player —</option>'
+    + players.filter(p=>!p.banned).map(p=>`<option value="${p.name}" style="background:#1a1a1a;color:#FFD700;">${p.name}</option>`).join("");
+  if(current) pSel.value = current;
+  renderSkinPickerGrid();
+}
+
+function renderSkinPickerGrid(){
+  const grid = document.getElementById("skinPickerGrid");
+  if(!grid) return;
+  const rarityOrder = ["rare","super_rare","epic","mythic","legendary","ultra","admin_exclusive"];
+  grid.innerHTML = rarityOrder.map(r=>{
+    const skins = ALL_SKINS.filter(s=>s.rarity===r);
+    if(!skins.length) return "";
+    const col = RARITY_COLORS[r]||"#aaa";
+    return `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:9px;color:${col};letter-spacing:2px;margin-bottom:6px;opacity:.8;">${RARITY_LABELS_MAP[r]}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${skins.map(s=>{
+            const sel = selectedSkinIds.has(s.id);
+            return `<button onclick="toggleSkin('${s.id}')" title="${s.name}" style="background:${sel?col+"33":"rgba(255,255,255,.04)"};border:2px solid ${sel?col:"#2a2a2a"};border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11px;color:${sel?col:"#666"};font-family:'Share Tech Mono',monospace;transition:all .12s;white-space:nowrap;box-shadow:${sel?`0 0 10px ${col}44`:"none"};">${s.name}${sel?" ✓":""}</button>`;
+          }).join("")}
+        </div>
+      </div>`;
+  }).join("");
+  updateSelectedDisplay();
+}
+
+function toggleSkin(id){
+  if(selectedSkinIds.has(id)) selectedSkinIds.delete(id);
+  else selectedSkinIds.add(id);
+  renderSkinPickerGrid();
+}
+
+function clearSkinSelection(){
+  selectedSkinIds.clear();
+  renderSkinPickerGrid();
+}
+
+function updateSelectedDisplay(){
+  const el = document.getElementById("selectedSkinsDisplay");
+  if(!el) return;
+  if(selectedSkinIds.size===0){
+    el.innerHTML='<span style="color:#555;font-style:italic;">No skins selected</span>';
+  } else {
+    const names = [...selectedSkinIds].map(id=>ALL_SKINS.find(s=>s.id===id)?.name||id);
+    el.innerHTML=`<span style="color:#FFD700;">${selectedSkinIds.size} selected:</span> <span style="color:#aaa;">${names.join(", ")}</span>`;
+  }
+}
+
+function giveSkin(){
+  const playerName = document.getElementById("giveSkinPlayer").value;
+  const msgEl = document.getElementById("giveSkinMsg");
+  if(!playerName){msgEl.style.color="#FF6644";msgEl.textContent="⚠️ Select a player first.";return;}
+  if(selectedSkinIds.size===0){msgEl.style.color="#FF6644";msgEl.textContent="⚠️ Select at least one skin.";return;}
+  try{
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if(!raw){msgEl.style.color="#FF6644";msgEl.textContent="❌ No accounts found.";return;}
+    const accounts = JSON.parse(raw);
+    const key = playerName.toLowerCase();
+    if(!accounts[key]){msgEl.style.color="#FF6644";msgEl.textContent="❌ Player not found.";return;}
+    if(!accounts[key].unlockedKernelIds) accounts[key].unlockedKernelIds = ["classic"];
+    const names = [];
+    selectedSkinIds.forEach(id=>{
+      accounts[key].unlockedKernelIds.push(id);
+      names.push(ALL_SKINS.find(s=>s.id===id)?.name||id);
+    });
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    msgEl.style.color="#66BB6A";
+    msgEl.textContent=`✅ Gave ${names.length} skin(s) to ${playerName}: ${names.join(", ")}`;
+    selectedSkinIds.clear();
+    renderSkinPickerGrid();
+    setTimeout(()=>msgEl.textContent="",4000);
+  } catch(e){
+    msgEl.style.color="#FF6644";
+    msgEl.textContent="❌ Error: "+e.message;
+  }
+}
+
+// ── AUTH ─────────────────────────────────────────────────────
+function doLogin(){
+  const err = document.getElementById("loginErr");
+  if(pinEntry === ADMIN_PIN){
+    document.getElementById("loginScreen").classList.add("hidden");
+    document.getElementById("adminPanel").classList.add("visible");
+    pinEntry = "";
+    updateDots();
+    renderAll();
+  } else {
+    err.textContent = "❌ Wrong PIN";
+    updateDots("error");
+    setTimeout(()=>{
+      pinEntry = "";
+      updateDots();
+      err.textContent = "";
+    }, 900);
+  }
+}
+function doLogout(){
+  document.getElementById("loginScreen").classList.remove("hidden");
+  document.getElementById("adminPanel").classList.remove("visible");
+  pinEntry = "";
+  updateDots();
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function renderAll(){ renderStats(); renderTable(); renderRooms(); renderBanLog(); populateGiveSkinDropdowns(); updateStorageDebug(); }
+
+function updateStorageDebug(){
+  const el = document.getElementById("storageDebug");
+  if(!el) return;
+  try{
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    if(!raw){ el.textContent="⚠ NO ACCOUNTS IN STORAGE"; el.style.color="#FF6644"; return; }
+    const count = Object.keys(JSON.parse(raw)).length;
+    el.textContent = count + " ACCOUNT(S) IN STORAGE";
+    el.style.color = count > 0 ? "#66BB6A" : "#FF6644";
+  } catch(e){ el.textContent="⚠ STORAGE ERROR"; el.style.color="#FF6644"; }
+}
+
+function manualRefresh(){
+  players = loadRealPlayers();
+  nextId = players.length + 1;
+  renderAll();
+  toast("↺ Refreshed — " + players.length + " account(s) found");
+}
+
+function renderStats(){
+  const realPlayers = players.filter(p=>!p.isBot);
+  const total = realPlayers.length;
+  const active = realPlayers.filter(p=>p.status==="active"&&!p.banned).length;
+  const banned = realPlayers.filter(p=>p.banned).length;
+  const totalRooms = rooms.length;
+  document.getElementById("statsRow").innerHTML = `
+    <div class="stat-card"><div class="stat-num" style="color:#66BB6A">${active}</div><div class="stat-label">ONLINE</div></div>
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">REAL PLAYERS</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${banned}</div><div class="stat-label">BANNED</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--gold)">${totalRooms}</div><div class="stat-label">ACTIVE ROOMS</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#CE93D8">${realPlayers.reduce((a,p)=>a+p.wins,0)}</div><div class="stat-label">TOTAL WINS</div></div>
+  `;
+}
+
+function renderTable(){
+  const q = document.getElementById("searchBar").value.toLowerCase();
+  const filtered = players.filter(p=> !p.isBot && (p.name.toLowerCase().includes(q)||p.room.toLowerCase().includes(q)));
+  const tbody = document.getElementById("playerTableBody");
+  if(!filtered.length){
+    const raw = localStorage.getItem(ACCOUNTS_KEY);
+    const storageExists = raw && Object.keys(JSON.parse(raw||"{}")).length > 0;
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:32px;">
+      ${players.length===0
+        ? `<div style="color:#FF6644;font-size:12px;line-height:2;">⚠ No accounts found in storage.<br>
+           <span style="color:#555;font-size:11px;">Make sure this admin panel is open on the <strong style="color:#aaa">same site/URL</strong> as the game.<br>
+           If game is on StackBlitz, open this file there too — not as a local file.</span></div>`
+        : `<div style="color:#444;font-size:12px;">No players match your search.</div>`}
+    </td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(p=>{
+    const statusTag = p.banned
+      ? `<span class="tag tag-banned">BANNED</span>`
+      : p.status==="active"
+        ? `<span class="tag tag-active">● ONLINE</span>`
+        : `<span class="tag tag-offline">OFFLINE</span>`;
+    const actions = p.banned
+      ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">
+           <button class="action-btn unban-btn" onclick="unbanPlayer(${p.id})">✓ Unban</button>
+           <button class="action-btn del-btn" onclick="deletePlayer(${p.id})">🗑 Delete</button>
+         </div>`
+      : `<div style="display:flex;gap:6px;flex-wrap:wrap;">
+           <button class="action-btn ban-btn" onclick="openBanModal(${p.id})">🚫 Ban</button>
+           <button class="action-btn del-btn" onclick="deletePlayer(${p.id})">🗑</button>
+         </div>`;
+    return `<tr class="${p.banned?'banned':''}">
+      <td><span style="color:#ddd">${p.name}</span>${p.banReason?`<br><span style="font-size:10px;color:#555;">Ban: ${p.banReason}</span>`:""}</td>
+      <td>${statusTag}</td>
+      <td style="color:#888;font-size:12px;">${p.room}</td>
+      <td style="font-size:12px;color:#aaa;">${p.wins}W · ${p.skins} 🎨</td>
+      <td style="font-size:11px;color:#555;">${p.joined}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderRooms(){
+  const grid = document.getElementById("roomsGrid");
+  if(!rooms.length){ grid.innerHTML=`<div style="color:#444;font-size:12px;">No active rooms.</div>`; return; }
+  grid.innerHTML = rooms.map((r,i)=>`
+    <div class="room-card">
+      <div class="room-code">${r.code}</div>
+      <div class="room-meta">${r.mode} · ${r.players}/${r.maxPlayers} players</div>
+      <div class="room-meta" style="color:var(--gold);margin-top:4px;">${r.phase}</div>
+      <button class="room-close-btn" onclick="closeRoom(${i})">✕ Force Close</button>
+    </div>
+  `).join("");
+}
+
+function renderBanLog(){
+  const el = document.getElementById("banLog");
+  if(!banLog.length){ el.innerHTML=`<div style="color:#444;font-size:12px;">No bans recorded yet.</div>`; return; }
+  el.innerHTML = banLog.map(l=>`
+    <div class="log-entry">
+      <div>
+        <span class="log-action">🚫 ${l.player}</span>
+        <span class="log-msg"> — ${l.reason||"No reason given"}</span>
+        <span style="color:var(--orange);font-size:11px;"> [${l.duration}]</span>
+      </div>
+      <div style="text-align:right;">
+        <div class="log-time">${l.time}</div>
+        <div style="font-size:10px;color:#555;">by ${l.admin}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+// ── ACTIONS ──────────────────────────────────────────────────
+function addPlayer(){
+  const name = document.getElementById("addName").value.trim();
+  const status = document.getElementById("addStatus").value;
+  if(!name){ toast("⚠️ Enter a username"); return; }
+  if(players.find(p=>p.name.toLowerCase()===name.toLowerCase())){ toast("⚠️ Username already exists"); return; }
+  players.push({ id:nextId++, name, status, room:"—", wins:0, kills:0, joined:new Date().toISOString().split("T")[0], banned:false, banReason:"", isAdmin:false, isBot:false });
+  document.getElementById("addName").value="";
+  renderAll();
+  toast(`✅ ${name} added`);
+}
+
+function openBanModal(id){
+  selectedBanId=id;
+  const p=players.find(x=>x.id===id);
+  document.getElementById("banModalName").textContent=`Player: ${p.name}`;
+  document.getElementById("banReason").value="";
+  document.getElementById("banModal").classList.add("open");
+}
+function closeModal(){ document.getElementById("banModal").classList.remove("open"); selectedBanId=null; }
+
+function confirmBan(){
+  const p=players.find(x=>x.id===selectedBanId);
+  if(!p)return;
+  const reason=document.getElementById("banReason").value.trim()||"No reason given";
+  const duration=document.getElementById("banDuration").value;
+  p.banned=true; p.status="banned"; p.room="—"; p.banReason=reason;
+  // Persist ban to localStorage so game respects it
+  saveAccountField(p.name, { banned:true, banReason:reason });
+  banLog.unshift({ player:p.name, reason, duration, time:new Date().toLocaleString(), admin:"Admin" });
+  closeModal();
+  renderAll();
+  toast(`🚫 ${p.name} banned`);
+}
+
+function unbanPlayer(id){
+  const p=players.find(x=>x.id===id);
+  if(!p)return;
+  p.banned=false; p.status="offline"; p.banReason="";
+  saveAccountField(p.name, { banned:false, banReason:"" });
+  banLog.unshift({ player:p.name, reason:"Unbanned", duration:"—", time:new Date().toLocaleString(), admin:"Admin" });
+  renderAll();
+  toast(`✅ ${p.name} unbanned`);
+}
+
+function kickPlayer(id){
+  const p=players.find(x=>x.id===id);
+  if(!p||p.isAdmin)return;
+  p.status="offline"; p.room="—";
+  rooms=rooms.map(r=>({ ...r, players:Math.max(0,r.players-(p.room===r.code?1:0)) }));
+  renderAll();
+  toast(`👢 ${p.name} kicked`);
+}
+
+function deletePlayer(id){
+  if(!confirm("Delete this player permanently? This removes their account and all progress."))return;
+  const p=players.find(x=>x.id===id);
+  // Remove from localStorage accounts
+  try{
+    const raw=localStorage.getItem(ACCOUNTS_KEY);
+    if(raw){
+      const accounts=JSON.parse(raw);
+      delete accounts[p.name.toLowerCase()];
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    }
+  }catch(e){}
+  players=players.filter(x=>x.id!==id);
+  renderAll();
+  toast(`🗑 ${p?.name||"Player"} deleted permanently`);
+}
+
+function closeRoom(i){
+  const r=rooms[i];
+  if(!confirm(`Force close room ${r.code}?`))return;
+  // Set players in this room to offline
+  players.forEach(p=>{ if(p.room===r.code){ p.status="offline"; p.room="—"; } });
+  rooms.splice(i,1);
+  renderAll();
+  toast(`🚪 Room ${r.code} closed`);
+}
+
+// ── TOAST ────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove("show"),2800);
+}
+
+// Allow Enter key on password field
+document.getElementById("pwInput").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+</script>
+</body>
+</html>
