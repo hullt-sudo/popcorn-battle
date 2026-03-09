@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🍿 Popcorn Battle — Admin Panel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  :root{--red:#FF4444;--gold:#FFD700;--orange:#FF8C00;--green:#66BB6A;--bg:#070500;--panel:rgba(255,255,255,0.04);--border:rgba(255,165,0,0.2);}
+  body{background:var(--bg);color:#fff;font-family:'Share Tech Mono',monospace;min-height:100vh;}
+  input,button,select{font-family:'Share Tech Mono',monospace;}
+  #loginScreen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#2a0a00,#050200);z-index:100;transition:opacity 0.4s;}
+  #loginScreen.hidden{opacity:0;pointer-events:none;}
+  .login-box{background:rgba(255,255,255,0.04);border:1px solid rgba(255,165,0,0.3);border-radius:24px;padding:36px 32px;width:300px;display:flex;flex-direction:column;gap:16px;align-items:center;}
+  .login-title{font-family:'Orbitron',monospace;font-size:13px;color:var(--gold);letter-spacing:4px;text-align:center;}
+  .lock-icon{font-size:52px;filter:drop-shadow(0 0 20px var(--gold));}
+  .pin-display{display:flex;gap:12px;justify-content:center;}
+  .pin-dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,165,0,0.4);background:transparent;transition:all 0.15s;}
+  .pin-dot.filled{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(255,215,0,0.6);}
+  .pin-dot.error{background:var(--red);border-color:var(--red);}
+  .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;}
+  .num-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,165,0,0.2);border-radius:14px;padding:16px 0;font-size:22px;font-weight:700;color:#fff;cursor:pointer;font-family:'Orbitron',monospace;transition:all 0.1s;user-select:none;}
+  .num-btn:hover{background:rgba(255,165,0,0.15);}
+  .num-btn:active{transform:scale(0.93);}
+  .num-btn.clear-btn{color:var(--red);font-size:16px;}
+  .num-btn.enter-btn{color:var(--gold);font-size:16px;}
+  .login-err{color:var(--red);font-size:12px;text-align:center;min-height:16px;letter-spacing:1px;}
+  #adminPanel{display:none;}
+  #adminPanel.visible{display:block;}
+  .topbar{background:rgba(0,0,0,0.8);border-bottom:1px solid rgba(255,165,0,0.2);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;backdrop-filter:blur(8px);}
+  .topbar-title{font-family:'Orbitron',monospace;font-size:14px;color:var(--gold);letter-spacing:3px;}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .logout-btn{background:rgba(255,68,68,0.12);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;}
+  .main{padding:24px;max-width:1100px;margin:0 auto;}
+  h2{font-family:'Orbitron',monospace;font-size:13px;color:var(--gold);letter-spacing:3px;margin-bottom:16px;}
+  .stats-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px;}
+  .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 22px;flex:1;min-width:140px;text-align:center;}
+  .stat-num{font-family:'Orbitron',monospace;font-size:28px;color:var(--gold);}
+  .stat-label{font-size:11px;color:#666;margin-top:4px;letter-spacing:1px;}
+  .search-bar{background:rgba(255,255,255,0.06);border:1px solid #333;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;width:100%;margin-bottom:16px;}
+  .search-bar:focus{border-color:rgba(255,165,0,0.5);}
+  .player-table{width:100%;border-collapse:collapse;}
+  .player-table th{text-align:left;font-size:10px;color:#555;letter-spacing:2px;padding:8px 12px;border-bottom:1px solid #1a1a1a;}
+  .player-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;vertical-align:middle;}
+  .player-table tr:hover td{background:rgba(255,255,255,0.02);}
+  .tag{display:inline-block;border-radius:5px;padding:2px 8px;font-size:10px;letter-spacing:1px;font-weight:700;}
+  .tag-active{background:rgba(100,200,100,0.15);color:var(--green);border:1px solid var(--green);}
+  .tag-banned{background:rgba(255,68,68,0.15);color:var(--red);border:1px solid var(--red);}
+  .action-btn{border-radius:7px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:'Share Tech Mono',monospace;border:1px solid;transition:all 0.15s;white-space:nowrap;}
+  .ban-btn{background:rgba(255,68,68,0.1);border-color:var(--red);color:var(--red);}
+  .unban-btn{background:rgba(100,200,100,0.1);border-color:var(--green);color:var(--green);}
+  .del-btn{background:rgba(100,100,100,0.1);border-color:#444;color:#666;}
+  .del-btn:hover{background:rgba(255,68,68,0.1);border-color:var(--red);color:var(--red);}
+  .log-panel{background:rgba(255,68,68,0.03);border:1px solid rgba(255,68,68,0.15);border-radius:14px;padding:20px;margin-top:28px;}
+  .log-entry{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;}
+  .log-entry:last-child{border-bottom:none;}
+  #toast{position:fixed;bottom:28px;right:28px;background:#1a1a1a;border:1px solid var(--gold);border-radius:10px;padding:12px 20px;font-size:13px;color:var(--gold);opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;}
+  #toast.show{opacity:1;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s;}
+  .modal-overlay.open{opacity:1;pointer-events:all;}
+  .modal{background:#110800;border:1px solid rgba(255,165,0,0.3);border-radius:18px;padding:32px;width:380px;max-width:90vw;}
+  .modal h3{font-family:'Orbitron',monospace;font-size:13px;color:var(--gold);letter-spacing:2px;margin-bottom:16px;}
+  .modal-input{background:rgba(255,255,255,0.07);border:1px solid #444;border-radius:8px;padding:10px 14px;color:#fff;font-size:13px;outline:none;width:100%;margin-bottom:10px;}
+  .modal-btns{display:flex;gap:10px;margin-top:16px;}
+  .modal-cancel{flex:1;background:transparent;border:1px solid #444;color:#888;border-radius:8px;padding:10px;cursor:pointer;font-size:13px;}
+  .modal-confirm{flex:1;background:rgba(255,68,68,0.15);border:1px solid var(--red);color:var(--red);border-radius:8px;padding:10px;cursor:pointer;font-size:13px;font-weight:700;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="lock-icon">🔐</div>
+    <div class="login-title">ADMIN ACCESS</div>
+    <div style="text-align:center;color:#555;font-size:10px;letter-spacing:1px;">POPCORN BATTLE CONTROL PANEL</div>
+    <div class="pin-display">
+      <div class="pin-dot" id="dot0"></div><div class="pin-dot" id="dot1"></div>
+      <div class="pin-dot" id="dot2"></div><div class="pin-dot" id="dot3"></div>
+    </div>
+    <div class="numpad">
+      <button class="num-btn" onclick="padPress('1')">1</button>
+      <button class="num-btn" onclick="padPress('2')">2</button>
+      <button class="num-btn" onclick="padPress('3')">3</button>
+      <button class="num-btn" onclick="padPress('4')">4</button>
+      <button class="num-btn" onclick="padPress('5')">5</button>
+      <button class="num-btn" onclick="padPress('6')">6</button>
+      <button class="num-btn" onclick="padPress('7')">7</button>
+      <button class="num-btn" onclick="padPress('8')">8</button>
+      <button class="num-btn" onclick="padPress('9')">9</button>
+      <button class="num-btn clear-btn" onclick="padClear()">⌫</button>
+      <button class="num-btn" onclick="padPress('0')">0</button>
+      <button class="num-btn enter-btn" onclick="doLogin()">↵</button>
+    </div>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<div id="adminPanel">
+  <div class="topbar">
+    <div class="topbar-title">🍿 POPCORN BATTLE — ADMIN</div>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <div class="status-dot"></div>
+      <span style="font-size:11px;color:#555;" id="connectionStatus">CONNECTING...</span>
+      <button class="logout-btn" onclick="doLogout()">LOGOUT</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="stats-row" id="statsRow"></div>
+
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:28px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <h2 style="margin:0;">👥 PLAYER MANAGEMENT</h2>
+        <button onclick="loadPlayers()" style="background:rgba(255,255,255,.06);border:1px solid #444;color:#aaa;border-radius:8px;padding:6px 14px;font-size:11px;cursor:pointer;letter-spacing:1px;">↺ REFRESH</button>
+      </div>
+      <input class="search-bar" id="searchBar" placeholder="🔍  Search players..." oninput="renderTable()"/>
+      <div style="overflow-x:auto;">
+        <table class="player-table">
+          <thead><tr>
+            <th>PLAYER</th><th>STATUS</th><th>RANK</th><th>LEVEL</th><th>SKINS</th><th>WINS</th><th>JOINED</th><th>ACTIONS</th>
+          </tr></thead>
+          <tbody id="playerTableBody"><tr><td colspan="8" style="text-align:center;padding:32px;color:#444;">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="background:var(--panel);border:1px solid rgba(255,215,0,.3);border-radius:16px;padding:22px;margin-bottom:28px;">
+      <h2>🎁 GIVE SKINS TO PLAYER</h2>
+      <div style="font-size:11px;color:#666;margin-bottom:16px;letter-spacing:1px;">SELECT PLAYER THEN CLICK SKINS TO TOGGLE</div>
+      <div style="margin-bottom:16px;">
+        <select id="giveSkinPlayer" style="background:#1a1a1a;border:1px solid #FFD70066;border-radius:10px;padding:10px 14px;color:#FFD700;font-size:13px;outline:none;min-width:200px;">
+          <option value="">— Select player —</option>
+        </select>
+      </div>
+      <div id="skinPickerGrid" style="margin-bottom:14px;"></div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div id="selectedSkinsDisplay" style="flex:1;min-width:160px;font-size:12px;color:#888;font-style:italic;">No skins selected</div>
+        <button onclick="giveSkins()" style="background:linear-gradient(135deg,rgba(255,215,0,.25),rgba(255,140,0,.25));border:2px solid var(--gold);color:var(--gold);border-radius:10px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;">🎁 Give Selected Skins</button>
+        <button onclick="clearSkinSelection()" style="background:rgba(255,255,255,.04);border:1px solid #444;color:#666;border-radius:10px;padding:10px 14px;font-size:12px;cursor:pointer;">✕ Clear</button>
+      </div>
+      <div id="giveSkinMsg" style="margin-top:10px;font-size:12px;min-height:18px;"></div>
+    </div>
+
+    <div class="log-panel">
+      <h2 style="color:var(--red);">🚫 BAN LOG</h2>
+      <div id="banLog"><div style="color:#444;font-size:12px;">No bans recorded.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="banModal">
+  <div class="modal">
+    <h3>🚫 BAN PLAYER</h3>
+    <div id="banModalName" style="font-size:15px;color:#ddd;margin-bottom:14px;"></div>
+    <input class="modal-input" id="banReason" placeholder="Reason for ban (optional)..."/>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmBan()">🚫 BAN</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const ADMIN_PIN="5699";
+const SUPABASE_URL="https://njyerixemvorcijncmjn.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qeWVyaXhlbXZvcmNpam5jbWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODM5NzIsImV4cCI6MjA4ODY1OTk3Mn0.R-_JFzgmR1UGRA5pn9eRy4x_nNdG5kIICxGp0q2FbZo";
+
+async function sb(path,opts={}){
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{
+    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json","Prefer":opts.prefer||"return=representation",...(opts.headers||{})},
+    ...opts
+  });
+  const text=await res.text();
+  if(!res.ok) throw new Error(text);
+  return text?JSON.parse(text):null;
+}
+
+let pinEntry="";
+function padPress(d){if(pinEntry.length>=4)return;pinEntry+=d;updateDots();if(pinEntry.length===4)setTimeout(doLogin,180);}
+function padClear(){pinEntry=pinEntry.slice(0,-1);updateDots();}
+function updateDots(state){for(let i=0;i<4;i++){const d=document.getElementById("dot"+i);d.className="pin-dot";if(state==="error")d.classList.add("error");else if(i<pinEntry.length)d.classList.add("filled");}}
+document.addEventListener("keydown",e=>{if(document.getElementById("loginScreen").classList.contains("hidden"))return;if(e.key>="0"&&e.key<="9")padPress(e.key);else if(e.key==="Backspace")padClear();else if(e.key==="Enter")doLogin();});
+
+function doLogin(){
+  if(pinEntry===ADMIN_PIN){
+    document.getElementById("loginScreen").classList.add("hidden");
+    document.getElementById("adminPanel").classList.add("visible");
+    pinEntry="";updateDots();
+    loadPlayers();
+    setInterval(loadPlayers,10000);
+  } else {
+    document.getElementById("loginErr").textContent="❌ Wrong PIN";
+    updateDots("error");
+    setTimeout(()=>{pinEntry="";updateDots();document.getElementById("loginErr").textContent="";},900);
+  }
+}
+function doLogout(){document.getElementById("loginScreen").classList.remove("hidden");document.getElementById("adminPanel").classList.remove("visible");pinEntry="";updateDots();}
+
+let players=[],banLog=[],selectedBanUsername="";
+
+function calcLevel(xp){let lvl=1,total=0;while(total+(100+lvl*40)<=xp){total+=100+lvl*40;lvl++;}return lvl;}
+function getRank(rp){if(rp>=1500)return{label:"Master",icon:"👑"};if(rp>=1100)return{label:"Diamond",icon:"💎"};if(rp>=750)return{label:"Platinum",icon:"🏅"};if(rp>=450)return{label:"Gold",icon:"🥇"};if(rp>=200)return{label:"Silver",icon:"🥈"};return{label:"Bronze",icon:"🥉"};}
+
+async function loadPlayers(){
+  try{
+    const rows=await sb("accounts?order=created_at.desc&limit=500");
+    players=(rows||[]).map(r=>({
+      username:r.username,banned:r.banned||false,ban_reason:r.ban_reason||"",
+      rank_points:r.rank_points||0,xp:r.xp||0,
+      skins:(r.unlocked_kernel_ids||[]).length,
+      wins:r.stats?.wins||0,
+      created_at:r.created_at?.split("T")[0]||"—"
+    }));
+    document.getElementById("connectionStatus").textContent="SUPABASE LIVE";
+    document.getElementById("connectionStatus").style.color="#66BB6A";
+    renderAll();
+  }catch(e){
+    document.getElementById("connectionStatus").textContent="ERROR: "+e.message;
+    document.getElementById("connectionStatus").style.color="#FF4444";
+  }
+}
+
+function renderAll(){renderStats();renderTable();renderBanLog();populateSkinDropdown();}
+
+function renderStats(){
+  const total=players.length,banned=players.filter(p=>p.banned).length;
+  document.getElementById("statsRow").innerHTML=`
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">PLAYERS</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${total-banned}</div><div class="stat-label">ACTIVE</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--red)">${banned}</div><div class="stat-label">BANNED</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#CE93D8">${players.reduce((a,p)=>a+p.wins,0)}</div><div class="stat-label">TOTAL WINS</div></div>
+  `;
+}
+
+function renderTable(){
+  const q=document.getElementById("searchBar").value.toLowerCase();
+  const filtered=players.filter(p=>p.username.toLowerCase().includes(q));
+  const tbody=document.getElementById("playerTableBody");
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="8" style="text-align:center;padding:32px;color:#444;">No players found.</td></tr>`;return;}
+  tbody.innerHTML=filtered.map(p=>{
+    const r=getRank(p.rank_points);
+    return`<tr style="${p.banned?"opacity:.5":""}">
+      <td style="color:#ddd">${p.username}${p.ban_reason?`<br><span style="font-size:10px;color:#555;">${p.ban_reason}</span>`:""}</td>
+      <td>${p.banned?`<span class="tag tag-banned">BANNED</span>`:`<span class="tag tag-active">ACTIVE</span>`}</td>
+      <td style="font-size:12px;color:#aaa;">${r.icon} ${r.label}</td>
+      <td style="font-size:12px;color:#aaa;">Lv${calcLevel(p.xp)}</td>
+      <td style="font-size:12px;color:#aaa;">${p.skins} 🎨</td>
+      <td style="font-size:12px;color:#aaa;">${p.wins}</td>
+      <td style="font-size:11px;color:#555;">${p.created_at}</td>
+      <td><div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${p.banned?`<button class="action-btn unban-btn" onclick="unbanPlayer('${p.username}')">✓ Unban</button>`:`<button class="action-btn ban-btn" onclick="openBanModal('${p.username}')">🚫 Ban</button>`}
+        <button class="action-btn del-btn" onclick="deletePlayer('${p.username}')">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderBanLog(){
+  const el=document.getElementById("banLog");
+  if(!banLog.length){el.innerHTML=`<div style="color:#444;font-size:12px;">No bans this session.</div>`;return;}
+  el.innerHTML=banLog.map(l=>`<div class="log-entry"><div><span style="color:var(--red)">🚫 ${l.player}</span><span style="color:#aaa"> — ${l.reason}</span></div><div style="font-size:10px;color:#555;">${l.time}</div></div>`).join("");
+}
+
+const ALL_SKINS=[
+  {id:"classic",name:"Classic",rarity:"rare"},{id:"golden",name:"Golden",rarity:"rare"},{id:"pink",name:"Rosy",rarity:"rare"},
+  {id:"blue",name:"Blueberry",rarity:"rare"},{id:"green",name:"Herb",rarity:"rare"},{id:"caramel",name:"Caramel",rarity:"rare"},
+  {id:"cheddar",name:"Cheddar",rarity:"rare"},{id:"minty",name:"Minty",rarity:"rare"},{id:"cherry",name:"Cherry",rarity:"rare"},
+  {id:"sandy",name:"Sandy",rarity:"rare"},{id:"lavender",name:"Lavender",rarity:"rare"},{id:"tangy",name:"Tangy",rarity:"rare"},
+  {id:"cocoa",name:"Cocoa",rarity:"rare"},{id:"bubbly",name:"Bubbly",rarity:"rare"},{id:"maple",name:"Maple",rarity:"rare"},
+  {id:"purple",name:"Violet",rarity:"super_rare"},{id:"spicy",name:"Spicy",rarity:"super_rare"},{id:"ice",name:"Ice",rarity:"super_rare"},
+  {id:"toxic",name:"Toxic",rarity:"super_rare"},{id:"night",name:"Midnight",rarity:"super_rare"},{id:"magma",name:"Magma",rarity:"super_rare"},
+  {id:"neon",name:"Neon",rarity:"super_rare"},{id:"phantom",name:"Phantom",rarity:"super_rare"},{id:"rust",name:"Rusty",rarity:"super_rare"},
+  {id:"swamp",name:"Swamp",rarity:"super_rare"},{id:"cotton",name:"Cotton Candy",rarity:"super_rare"},{id:"obsidian",name:"Obsidian",rarity:"super_rare"},
+  {id:"coral",name:"Coral",rarity:"super_rare"},
+  {id:"galaxy",name:"Galaxy",rarity:"epic"},{id:"rainbow",name:"Rainbow",rarity:"epic"},{id:"lava",name:"Lava",rarity:"epic"},
+  {id:"cyber",name:"Cyber",rarity:"epic"},{id:"crystal",name:"Crystal",rarity:"epic"},{id:"prism",name:"Prism",rarity:"epic"},
+  {id:"arctic",name:"Arctic",rarity:"epic"},{id:"ancient",name:"Ancient",rarity:"epic"},{id:"plasma",name:"Plasma",rarity:"epic"},
+  {id:"venom",name:"Venom",rarity:"epic"},{id:"biolum",name:"Bioluminescent",rarity:"epic"},{id:"abyssal",name:"Abyssal",rarity:"epic"},
+  {id:"shadow",name:"Shadow",rarity:"mythic"},{id:"storm",name:"Storm",rarity:"mythic"},{id:"dragon",name:"Dragon",rarity:"mythic"},
+  {id:"specter",name:"Specter",rarity:"mythic"},{id:"tsunami",name:"Tsunami",rarity:"mythic"},{id:"nova",name:"Nova",rarity:"mythic"},
+  {id:"warlord",name:"Warlord",rarity:"mythic"},{id:"eclipse",name:"Eclipse",rarity:"mythic"},{id:"titan",name:"Titan",rarity:"mythic"},
+  {id:"cosmos",name:"Cosmos",rarity:"mythic"},{id:"abyss",name:"Abyss",rarity:"mythic"},{id:"dusk",name:"Dusk",rarity:"mythic"},
+  {id:"glacier",name:"Glacier",rarity:"mythic"},{id:"rune",name:"Runic",rarity:"mythic"},
+  {id:"angel",name:"Angel",rarity:"legendary"},{id:"void",name:"Void",rarity:"legendary"},{id:"phoenix",name:"Phoenix",rarity:"legendary"},
+  {id:"celestial",name:"Celestial",rarity:"legendary"},{id:"eternal",name:"Eternal",rarity:"legendary"},{id:"wraith",name:"Wraith",rarity:"legendary"},
+  {id:"ultra",name:"🌟 Ultra Kernel",rarity:"ultra"},{id:"ultrablaze",name:"🌠 Ultra Blaze",rarity:"ultra"},{id:"ultravoid",name:"🫙 Ultra Void",rarity:"ultra"},
+  {id:"admin_crown",name:"👑 Admin Crown",rarity:"admin_exclusive"},{id:"admin_fire",name:"🔱 Inferno",rarity:"admin_exclusive"},{id:"admin_ghost",name:"👻 Phantasm",rarity:"admin_exclusive"},
+];
+const RARITY_COLORS={rare:"#4FC3F7",super_rare:"#CE93D8",epic:"#FF8A65",mythic:"#F48FB1",legendary:"#FFD700",ultra:"#FF00FF",admin_exclusive:"#FF4444"};
+const RARITY_LABELS={rare:"★ Rare",super_rare:"★★ Super Rare",epic:"★★★ Epic",mythic:"★★★★ Mythic",legendary:"★★★★★ Legendary",ultra:"✦ ULTRA",admin_exclusive:"👑 Admin Exclusive"};
+let selectedSkinIds=new Set();
+
+function populateSkinDropdown(){
+  const sel=document.getElementById("giveSkinPlayer");const cur=sel.value;
+  sel.innerHTML='<option value="">— Select player —</option>'+players.filter(p=>!p.banned).map(p=>`<option value="${p.username}" style="background:#1a1a1a;color:#FFD700;">${p.username}</option>`).join("");
+  if(cur)sel.value=cur;renderSkinGrid();
+}
+function renderSkinGrid(){
+  const grid=document.getElementById("skinPickerGrid");
+  grid.innerHTML=["rare","super_rare","epic","mythic","legendary","ultra","admin_exclusive"].map(r=>{
+    const skins=ALL_SKINS.filter(s=>s.rarity===r);const col=RARITY_COLORS[r];
+    return`<div style="margin-bottom:10px;"><div style="font-size:9px;color:${col};letter-spacing:2px;margin-bottom:5px;">${RARITY_LABELS[r]}</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${skins.map(s=>{const sel=selectedSkinIds.has(s.id);return`<button onclick="toggleSkin('${s.id}')" style="background:${sel?col+"33":"rgba(255,255,255,.04)"};border:2px solid ${sel?col:"#2a2a2a"};border-radius:7px;padding:4px 9px;cursor:pointer;font-size:11px;color:${sel?col:"#666"};font-family:'Share Tech Mono',monospace;white-space:nowrap;">${s.name}${sel?" ✓":""}</button>`;}).join("")}</div></div>`;
+  }).join("");
+  const d=document.getElementById("selectedSkinsDisplay");
+  if(selectedSkinIds.size===0)d.innerHTML='<span style="color:#555;font-style:italic;">No skins selected</span>';
+  else{const n=[...selectedSkinIds].map(id=>ALL_SKINS.find(s=>s.id===id)?.name||id);d.innerHTML=`<span style="color:#FFD700;">${selectedSkinIds.size} selected:</span> <span style="color:#aaa;">${n.join(", ")}</span>`;}
+}
+function toggleSkin(id){if(selectedSkinIds.has(id))selectedSkinIds.delete(id);else selectedSkinIds.add(id);renderSkinGrid();}
+function clearSkinSelection(){selectedSkinIds.clear();renderSkinGrid();}
+
+async function giveSkins(){
+  const playerName=document.getElementById("giveSkinPlayer").value;
+  const msgEl=document.getElementById("giveSkinMsg");
+  if(!playerName){msgEl.style.color="#FF6644";msgEl.textContent="⚠️ Select a player.";return;}
+  if(selectedSkinIds.size===0){msgEl.style.color="#FF6644";msgEl.textContent="⚠️ Select at least one skin.";return;}
+  try{
+    const rows=await sb(`accounts?username=eq.${encodeURIComponent(playerName)}&limit=1`);
+    if(!rows?.length){msgEl.style.color="#FF6644";msgEl.textContent="❌ Player not found.";return;}
+    const existing=rows[0].unlocked_kernel_ids||["classic"];
+    const toAdd=[...selectedSkinIds].filter(id=>!existing.includes(id));
+    const updated=[...existing,...toAdd];
+    await sb(`accounts?username=eq.${encodeURIComponent(playerName)}`,{method:"PATCH",body:JSON.stringify({unlocked_kernel_ids:updated}),prefer:"return=minimal"});
+    const names=toAdd.map(id=>ALL_SKINS.find(s=>s.id===id)?.name||id);
+    msgEl.style.color="#66BB6A";msgEl.textContent=`✅ Gave ${names.length} skin(s) to ${playerName}: ${names.join(", ")}`;
+    selectedSkinIds.clear();renderSkinGrid();toast(`🎁 Gifted to ${playerName}!`);
+    setTimeout(()=>msgEl.textContent="",4000);
+  }catch(e){msgEl.style.color="#FF6644";msgEl.textContent="❌ Error: "+e.message;}
+}
+
+function openBanModal(username){selectedBanUsername=username;document.getElementById("banModalName").textContent=`Player: ${username}`;document.getElementById("banReason").value="";document.getElementById("banModal").classList.add("open");}
+function closeModal(){document.getElementById("banModal").classList.remove("open");selectedBanUsername="";}
+
+async function confirmBan(){
+  const reason=document.getElementById("banReason").value.trim()||"No reason given";
+  try{
+    await sb(`accounts?username=eq.${encodeURIComponent(selectedBanUsername)}`,{method:"PATCH",body:JSON.stringify({banned:true,ban_reason:reason}),prefer:"return=minimal"});
+    banLog.unshift({player:selectedBanUsername,reason,time:new Date().toLocaleString()});
+    closeModal();await loadPlayers();toast(`🚫 ${selectedBanUsername} banned`);
+  }catch(e){toast("❌ Ban failed: "+e.message);}
+}
+
+async function unbanPlayer(username){
+  try{
+    await sb(`accounts?username=eq.${encodeURIComponent(username)}`,{method:"PATCH",body:JSON.stringify({banned:false,ban_reason:""}),prefer:"return=minimal"});
+    await loadPlayers();toast(`✅ ${username} unbanned`);
+  }catch(e){toast("❌ Unban failed: "+e.message);}
+}
+
+async function deletePlayer(username){
+  if(!confirm(`Permanently delete ${username}? Cannot be undone.`))return;
+  try{
+    await sb(`accounts?username=eq.${encodeURIComponent(username)}`,{method:"DELETE",prefer:"return=minimal"});
+    await loadPlayers();toast(`🗑 ${username} deleted`);
+  }catch(e){toast("❌ Delete failed: "+e.message);}
+}
+
+let toastTimer;
+function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),2800);}
+</script>
+</body>
+</html>
